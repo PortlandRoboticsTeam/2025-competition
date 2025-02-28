@@ -48,8 +48,8 @@ public class RobotContainer {
 
 
   // controllers vv
-  private final static CommandGenericHID m_driverController =
-        new CommandGenericHID(OperatorConstants.driverControllerPort);
+  private final static CommandPS4Controller m_driverController =
+        new CommandPS4Controller(OperatorConstants.driverControllerPort);
   private final static CommandPS4Controller m_helperController =
         new CommandPS4Controller(OperatorConstants.helperControllerPort);
   
@@ -130,8 +130,14 @@ public class RobotContainer {
       steeringController.enableContinuousInput(0, 360);
 
       configureArmSystems();
+      registerGrabberCommands();
       configureBindings();
       
+    }
+    private void registerGrabberCommands(){
+      NamedCommands.registerCommand("grab", grabCommand);
+      NamedCommands.registerCommand("release", releaseCommand);
+      NamedCommands.registerCommand("stopGrabbing", stopGrabbingCommand);
     }
   
     /**
@@ -144,6 +150,63 @@ public class RobotContainer {
      * joysticks}.
      */
     private void configureBindings() {
+      m_driverController.square().onTrue(resetGyro);
+      m_driverController.L1().onFalse(fieldOrientCommand);
+      m_driverController.L1().onTrue(robotOrientCommand);
+
+      m_driverController.axisMagnitudeGreaterThan(2, Constants.DEADBAND).whileTrue(steeringCommand);
+      m_driverController.R2().onTrue(grabCommand);
+      m_driverController.L2().onTrue(releaseCommand);
+      m_driverController.button(12).onTrue(visdrive); // rstick button
+      m_driverController.button(12).onFalse(driveCommand);
+      m_driverController.R1().whileTrue(new InstantCommand(()->{doMaintainAngle=false;}));
+      m_driverController.R1().whileFalse(new InstantCommand(()->{doMaintainAngle=true;}));
+
+      CommandPS4Controller hc = m_helperController;
+
+      // see the control guide:
+      // https://docs.google.com/presentation/d/1Df-ZnbTBpNsHdl3szxJ4QNOpd_V1Ua5YG6Antzs98B0/edit#slide=id.g2af72db80bc_0_5
+
+      // rest and intermediate
+      hc.R1().and(hc.cross()).onTrue(goToPositionCommand[ 0]);
+      hc.button(12).onTrue(goToPositionCommand[19]);
+
+      // reef scoring:   (1-9)
+      hc.cross   ().and(hc.povDown ()).onTrue(goToPositionCommand[ 1]);
+      hc.cross   ().and(hc.povRight()).onTrue(goToPositionCommand[ 2]);
+      hc.cross   ().and(hc.povLeft ()).onTrue(goToPositionCommand[ 3]);
+      hc.circle  ().and(hc.povDown ()).onTrue(goToPositionCommand[ 4]);
+      hc.square  ().and(hc.povRight()).onTrue(goToPositionCommand[ 5]);
+      hc.square  ().and(hc.povLeft ()).onTrue(goToPositionCommand[ 6]);
+      hc.circle  ().and(hc.povUp   ()).onTrue(goToPositionCommand[ 7]);
+      hc.triangle().and(hc.povRight()).onTrue(goToPositionCommand[ 8]);
+      hc.triangle().and(hc.povLeft ()).onTrue(goToPositionCommand[ 9]);
+
+      // floor pickup:  (12-15)
+      // hc.povDown().and(hc.L2()).and(hc.circle()).onTrue(goToPositionCommand[12]);
+      // hc.povDown().and(hc.L2()).and(hc.cross ()).onTrue(goToPositionCommand[13]);
+      // hc.povUp  ().and(hc.L2()).and(hc.circle()).onTrue(goToPositionCommand[14]);
+      // hc.povUp  ().and(hc.L2()).and(hc.cross ()).onTrue(goToPositionCommand[15]);
+
+      // other positions:  (16-18)
+      // hc.L1().and(
+        hc.povUp  ().and(hc.cross ()).onTrue(goToPositionCommand[16]);
+      // hc.L1().and(hc.povDown()).and(hc.circle()).onTrue(goToPositionCommand[17]);
+      // hc.L1().and(hc.povUp  ()).and(hc.circle()).onTrue(goToPositionCommand[18]);
+      
+      // rest position (0), zero gyro, and manual arm
+      hc.cross().and(hc.R2()).onTrue(goToPositionCommand[ 0]);
+      hc.square().and(hc.R2()).onTrue(resetGyro);
+      hc.R2().whileTrue(runArmManualCommand);
+
+      // climb controls (10 & 11)
+      hc.L1().and(hc.R1()).onTrue (goToPositionCommand[10]);
+      hc.L1().and(hc.R1()).onFalse(goToPositionCommand[11].andThen(()->{doMaintainAngle=false;}));
+      hc.R2().and(hc.triangle()).onTrue(calibrateTelescope);
+    
+    }
+    
+    private void configureOldBindings() {
       m_driverController.button(11).onTrue(resetGyro);
       m_driverController.button(3).whileTrue(swerve.vishionDrive());
       m_driverController.button(5).onFalse(fieldOrientCommand);
@@ -189,8 +252,7 @@ public class RobotContainer {
       // hc.povUp  ().and(hc.L2()).and(hc.cross ()).onTrue(goToPositionCommand[15]);
 
       // other positions:  (16-18)
-      // hc.L1().and(hc.povUp  ()).and(
-        hc.cross ().onTrue(goToPositionCommand[16]);
+      hc.L1().and(hc.povUp  ()).and(hc.cross ()).onTrue(goToPositionCommand[16]);
       // hc.L1().and(hc.povDown()).and(hc.circle()).onTrue(goToPositionCommand[17]);
       // hc.L1().and(hc.povUp  ()).and(hc.circle()).onTrue(goToPositionCommand[18]);
       
