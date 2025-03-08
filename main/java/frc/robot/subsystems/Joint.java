@@ -1,5 +1,7 @@
 package frc.robot.subsystems;
 
+import java.util.function.BooleanSupplier;
+
 // Import necessary libraries for hardware control and PID management
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -146,7 +148,7 @@ public class Joint extends SubsystemBase {
     }
 
     public Command getGoToCommand(double newSetpoint, double tolerance){
-        return new GenericCommand(()->setSetpoint(newSetpoint), ()->{isNearSetpoint(tolerance);});
+        return new GenericCommand(()->setSetpoint(newSetpoint), ()->isNearSetpoint(tolerance));
     }
     public void setPIDValue(double p, double i, double d){
         pid.setPID(p, i, d);

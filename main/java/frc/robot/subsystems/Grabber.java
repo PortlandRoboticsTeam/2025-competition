@@ -44,10 +44,10 @@ public class Grabber extends SubsystemBase {
     public void periodic(){
         switch (state) {
             case forward:
-                coralMotor.set(GrabberConstants.coralSpeed);
+                coralMotor.set(-GrabberConstants.coralSpeed);
                 break;
             case reverse:
-                coralMotor.set(-GrabberConstants.coralSpeed);
+                coralMotor.set(GrabberConstants.coralSpeed);
                 break;
             case stop:
                 coralMotor.set(0);

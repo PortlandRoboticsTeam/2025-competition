@@ -11,10 +11,12 @@ import frc.robot.Constants.ArmConstants;
 import frc.robot.subsystems.ArmPosition;
 import frc.robot.subsystems.Grabber;
 import frc.robot.subsystems.Joint;
+import frc.robot.subsystems.Motor;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.Telescope;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandGenericHID;
 import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -24,6 +26,7 @@ import com.pathplanner.lib.auto.NamedCommands;
 // import com.studica.frc.AHRS.NavXComType;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
@@ -34,7 +37,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  */
 public class RobotContainer {
   
-  
+  Motor climb = new Motor(31,Motor.MotorType.talon);
   // hardware objects vv
   private final SwerveSubsystem swerve = new SwerveSubsystem();
   Joint shoulder1     = new Joint    (0, ArmConstants.shoulder1ID, ArmConstants.shoulderEncoderID , false, 0, 0.13, 0, 0.001, ArmConstants.shoulder1Type, ArmConstants.shoulderEncoderType);
@@ -56,10 +59,11 @@ public class RobotContainer {
   
   // variables vv
   private Command driveCommand; 
-  private boolean isFieldOriented = true;
+  private boolean isFieldOriented = false;
   private double steeringTargetAngle = 0;
-  private boolean doMaintainAngle = true;
+  private boolean doMaintainAngle = false;
   private Command visdrive = swerve.vishionDrive();
+  
 
 
   // commands vv
@@ -122,11 +126,11 @@ public class RobotContainer {
                   MathUtil.applyDeadband(m_helperController.getL2Axis() > 0.5 ? 
                   m_helperController.getRightX() : 
                   m_driverController.getRawAxis(2), Constants.DEADBAND),
-        () ->  isFieldOriented
+        () ->  false,//isFieldOriented
+        () ->  -MathUtil.applyDeadband(m_driverController.getRawAxis(5),.4)
       );
       
       swerve.setDefaultCommand(driveCommand);
-
       steeringController.enableContinuousInput(0, 360);
 
       configureArmSystems();
@@ -150,8 +154,49 @@ public class RobotContainer {
      * joysticks}.
      */
     private void configureBindings() {
+      m_driverController.L1().onTrue(new InstantCommand(()->climb.set(-.5)));
+      m_driverController.L1().onFalse(new InstantCommand(()->climb.set(0)));
+      m_helperController.circle().onTrue(goToPositionCommand[22]);
+      
+      
       m_driverController.square().onTrue(resetGyro);
-      m_driverController.L1().onFalse(fieldOrientCommand);
+      m_driverController.axisMagnitudeGreaterThan(2, Constants.DEADBAND).whileTrue(steeringCommand);
+      m_driverController.R2().onTrue(grabCommand);
+      m_driverController.L2().onTrue(releaseCommand);
+      m_driverController.button(12).onTrue(visdrive); // rstick button
+      m_driverController.button(12).onFalse(driveCommand);
+
+      CommandPS4Controller hc = m_helperController;
+      Trigger noTriggersOrBumpers = hc.L1().or(hc.L2()).or(hc.R1()).or(hc.R2()).negate();
+
+      Trigger rightBumperOnly = hc.L2().or(hc.L1()).or(hc.R2()).negate().and(hc.povCenter()).and(hc.R1());
+      rightBumperOnly.and(hc.cross()).onTrue(goToPositionCommand[ 0]);
+      rightBumperOnly.and(hc.square()).onTrue(resetGyro);
+      hc.R2().and(hc.R1().and(hc.L1()).and(hc.L2()).negate()).whileTrue(runArmManualCommand);
+      rightBumperOnly.and(hc.triangle()).onTrue(calibrateTelescope);
+      
+      noTriggersOrBumpers.and(hc.povDown  ()).and(hc.cross   ()).onTrue(goToPositionCommand[ 1]);// Tray: 1
+      noTriggersOrBumpers.and(hc.povCenter()).and(hc.cross   ()).onTrue(goToPositionCommand[ 2]);// Low Foward Coral: 2
+      noTriggersOrBumpers.and(hc.povRight ()).and(hc.cross   ()).onTrue(goToPositionCommand[ 3]);// Low Back Coral: 3
+      noTriggersOrBumpers.and(hc.povDown  ()).and(hc.circle  ()).onTrue(goToPositionCommand[ 3]);// Low Reef Ball: 4
+      noTriggersOrBumpers.and(hc.povCenter()).and(hc.square  ()).onTrue(goToPositionCommand[ 5]);// Mid Foward Coral: 5
+      noTriggersOrBumpers.and(hc.povRight ()).and(hc.square  ()).onTrue(goToPositionCommand[ 6]);// Mid Back Coral: 6
+      noTriggersOrBumpers.and(hc.povUp    ()).and(hc.circle  ()).onTrue(goToPositionCommand[ 7]);// High Reef Ball: 7
+      noTriggersOrBumpers.and(hc.povCenter()).and(hc.triangle()).onTrue(goToPositionCommand[ 8]);// High Foward Coral: 8
+      noTriggersOrBumpers.and(hc.povRight ()).and(hc.triangle()).onTrue(goToPositionCommand[ 9]);// High Back Coral: 9
+
+      noTriggersOrBumpers.and(hc.povUp    ()).and(hc.cross   ()).onTrue(goToPositionCommand[16]);// Coral from Human
+      
+      hc.L1().and(hc.R1()).and(hc.L2().and(hc.R2()).negate())   .onTrue(goToPositionCommand[10]);// climb
+      noTriggersOrBumpers.and(hc.button(12))             .onTrue(goToPositionCommand[19]);// Intermediate Position: 19
+
+      hc.L2().and(hc.triangle()).onTrue(grabCommand);
+      hc.L2().and(hc.cross()).onTrue(releaseCommand);
+    }
+    private void configureBindingsKettering() {
+      // driver stuff
+      m_driverController.square().onTrue(resetGyro);
+      //m_driverController.L1().onFalse(fieldOrientCommand);
       m_driverController.L1().onTrue(robotOrientCommand);
 
       m_driverController.axisMagnitudeGreaterThan(2, Constants.DEADBAND).whileTrue(steeringCommand);
@@ -159,10 +204,11 @@ public class RobotContainer {
       m_driverController.L2().onTrue(releaseCommand);
       m_driverController.button(12).onTrue(visdrive); // rstick button
       m_driverController.button(12).onFalse(driveCommand);
-      m_driverController.R1().whileTrue(new InstantCommand(()->{doMaintainAngle=false;}));
-      m_driverController.R1().whileFalse(new InstantCommand(()->{doMaintainAngle=true;}));
+      // m_driverController.R1().whileTrue(new InstantCommand(()->{doMaintainAngle=false;}));
+      // m_driverController.R1().whileFalse(new InstantCommand(()->{doMaintainAngle=true;}));
 
       CommandPS4Controller hc = m_helperController;
+      Trigger noTriggersOrBumpers = hc.L1().or(hc.L2()).or(hc.R1()).or(hc.R2()).negate();
 
       // see the control guide:
       // https://docs.google.com/presentation/d/1Df-ZnbTBpNsHdl3szxJ4QNOpd_V1Ua5YG6Antzs98B0/edit#slide=id.g2af72db80bc_0_5
@@ -170,47 +216,37 @@ public class RobotContainer {
       // rest and intermediate
       hc.R1().and(hc.cross()).onTrue(goToPositionCommand[ 0]);
       hc.button(12).onTrue(goToPositionCommand[19]);
-
-      // reef scoring:   (1-9)
-      hc.cross   ().and(hc.povDown ()).onTrue(goToPositionCommand[ 1]);
-      hc.cross   ().and(hc.povRight()).onTrue(goToPositionCommand[ 2]);
-      hc.cross   ().and(hc.povLeft ()).onTrue(goToPositionCommand[ 3]);
-      hc.circle  ().and(hc.povDown ()).onTrue(goToPositionCommand[ 4]);
-      hc.square  ().and(hc.povRight()).onTrue(goToPositionCommand[ 5]);
-      hc.square  ().and(hc.povLeft ()).onTrue(goToPositionCommand[ 6]);
-      hc.circle  ().and(hc.povUp   ()).onTrue(goToPositionCommand[ 7]);
-      hc.triangle().and(hc.povRight()).onTrue(goToPositionCommand[ 8]);
-      hc.triangle().and(hc.povLeft ()).onTrue(goToPositionCommand[ 9]);
-
-      // floor pickup:  (12-15)
-      // hc.povDown().and(hc.L2()).and(hc.circle()).onTrue(goToPositionCommand[12]);
-      // hc.povDown().and(hc.L2()).and(hc.cross ()).onTrue(goToPositionCommand[13]);
-      // hc.povUp  ().and(hc.L2()).and(hc.circle()).onTrue(goToPositionCommand[14]);
-      // hc.povUp  ().and(hc.L2()).and(hc.cross ()).onTrue(goToPositionCommand[15]);
-
-      // other positions:  (16-18)
-      // hc.L1().and(
-        hc.povUp  ().and(hc.cross ()).onTrue(goToPositionCommand[16]);
-      // hc.L1().and(hc.povDown()).and(hc.circle()).onTrue(goToPositionCommand[17]);
-      // hc.L1().and(hc.povUp  ()).and(hc.circle()).onTrue(goToPositionCommand[18]);
-      
-      // rest position (0), zero gyro, and manual arm
-      hc.cross().and(hc.R2()).onTrue(goToPositionCommand[ 0]);
       hc.square().and(hc.R2()).onTrue(resetGyro);
       hc.R2().whileTrue(runArmManualCommand);
-
+      hc.R2().and(hc.triangle()).onTrue(calibrateTelescope);
+      
       // climb controls (10 & 11)
       hc.L1().and(hc.R1()).onTrue (goToPositionCommand[10]);
-      hc.L1().and(hc.R1()).onFalse(goToPositionCommand[11].andThen(()->{doMaintainAngle=false;}));
-      hc.R2().and(hc.triangle()).onTrue(calibrateTelescope);
+      // hc.L1().and(hc.R1()).onFalse(new InstantCommand(()->{doMaintainAngle=false;}));
+
+      // reef scoring:   (1-9)
+      hc.cross   ().and(noTriggersOrBumpers).and(hc.povDown()  ).onTrue(goToPositionCommand[ 1]); // Tray
+      hc.cross   ().and(noTriggersOrBumpers).and(hc.povCenter()).onTrue(goToPositionCommand[ 3]); // Low Right Coral
+      hc.circle  ().and(noTriggersOrBumpers).and(hc.povDown()  ).onTrue(goToPositionCommand[ 4]); // Low Reef Ball
+      hc.square  ().and(noTriggersOrBumpers).and(hc.povCenter()).onTrue(goToPositionCommand[ 6]);//.andThen(goToPositionCommand[ 6])); // Mid Right Coral
+      hc.circle  ().and(noTriggersOrBumpers).and(hc.povDown()  ).onTrue(goToPositionCommand[ 7]); // High Reef Ball
+      hc.triangle().and(noTriggersOrBumpers).and(hc.povCenter()).onTrue(goToPositionCommand[ 19].andThen(new WaitCommand(2.5).andThen(goToPositionCommand[ 9]))); // High Right Coral
+      m_driverController.button(1).onTrue(goToPositionCommand[20]);
+
+      hc.povUp  ().and(hc.cross ()).onTrue(goToPositionCommand[16]);
+      hc.L2().and(hc.triangle()).onTrue(grabCommand);
+      hc.L2().and(hc.cross()).onTrue(releaseCommand);
+
+
     
     }
+
     
     private void configureOldBindings() {
       m_driverController.button(11).onTrue(resetGyro);
       m_driverController.button(3).whileTrue(swerve.vishionDrive());
-      m_driverController.button(5).onFalse(fieldOrientCommand);
-      m_driverController.button(5).onTrue(robotOrientCommand);
+      m_driverController.button(5).onTrue(fieldOrientCommand);
+      m_driverController.button(5).onFalse(robotOrientCommand);
 
       // m_driverController.button(1).onTrue (goToPositionCommand[11]);
       // m_driverController.button(1).onFalse(goToPositionCommand[10]);
@@ -276,11 +312,10 @@ public class RobotContainer {
      * register arm commands to pathplanner
      */
     private void configureArmSystems(){
-      shoulder1.setDefaultCommand(new JointToPosition(shoulder1));
+      // shoulder1.setDefaultCommand(new JointToPosition(shoulder1));
       shoulder2.setDefaultCommand(new JointToPosition(shoulder2));
       wrist    .setDefaultCommand(new JointToPosition(wrist    ));
       telescope.setDefaultCommand(new JointToPosition(telescope));
-      wrist.getPID().disableContinuousInput();
 
       if(ArmConstants.useBounds){
         shoulder1.applyBounds(ArmConstants.shoulderMin , ArmConstants.shoulderMax );
@@ -322,7 +357,7 @@ public class RobotContainer {
      */
     public Command getAutonomousCommand() {
       // An example command will be run in autonomous
-      return swerve.getAutonomousCommand(OperatorConstants.AutonomousCommandName);
+      return swerve.getResetGyro().andThen(swerve.getAutonomousCommand(OperatorConstants.AutonomousCommandName));
     }
     
     public void periodic(){ }

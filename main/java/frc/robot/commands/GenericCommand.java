@@ -19,9 +19,9 @@ public class GenericCommand extends Command{
     whileCommand = _whileCommand;
     stopCommand = _stopCommand;
   }
-  public GenericCommand(Runnable _onCommand, Runnable _isDone){
+  public GenericCommand(Runnable _onCommand, BooleanSupplier _isDone){
     onCommand = _onCommand;
-    // isDone = _isDone;
+    isDone = _isDone;
   }
   // Called when the command is initially scheduled.
   @Override

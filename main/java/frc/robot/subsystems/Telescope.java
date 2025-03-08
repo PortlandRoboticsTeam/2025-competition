@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import com.revrobotics.ColorSensorV3;
 
 import edu.wpi.first.wpilibj.I2C;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.ArmConstants;
 import frc.robot.subsystems.Encoder.EncoderType;
 import frc.robot.subsystems.Motor.MotorType;
@@ -45,7 +46,7 @@ public class Telescope extends Joint{
     // SmartDashboard.putBoolean("iscalibrating", isCalibrating);
     // SmartDashboard.putBoolean("is pid enabled", isPIDEnabled());
     // SmartDashboard.putNumber("getangledegrees", getEncoder().getValue());
-    // SmartDashboard.putNumber("Color Green Value", colorSensor.getGreen());
+    SmartDashboard.putNumber("Color Green Value", colorSensor.getGreen());
     // SmartDashboard.putNumber("Color Red Value", colorSensor.getRed());
     // SmartDashboard.putNumber("Color Blue Value", colorSensor.getBlue());
   }

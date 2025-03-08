@@ -23,6 +23,7 @@ import frc.robot.RobotContainer;
 import swervelib.parser.SwerveParser;
 import swervelib.telemetry.SwerveDriveTelemetry;
 import swervelib.SwerveDrive;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -33,6 +34,7 @@ public class SwerveSubsystem extends SubsystemBase{
     File swerveJsonDirectory = new File(Filesystem.getDeployDirectory(),"swerve");
     SwerveDrive swerveDrive;
     Limelight limelight = new Limelight();
+    double speedControl = 1;
     public SwerveSubsystem(){
         try {
           SwerveDriveTelemetry.verbosity = Constants.telemetryVerbosity;
@@ -51,25 +53,31 @@ public class SwerveSubsystem extends SubsystemBase{
    * @param angularRotationX Rotation of the robot to set
    * @return Drive command.
    */
-  public Command driveCommand(DoubleSupplier translationX, DoubleSupplier translationY, DoubleSupplier angularRotationX)
+  public Command driveCommand(DoubleSupplier translationX, DoubleSupplier translationY, DoubleSupplier angularRotationX,DoubleSupplier speedController)
   {
     return run(() -> {
       // Make the robot move
-      swerveDrive.drive(new Translation2d(translationX.getAsDouble() * swerveDrive.getMaximumChassisVelocity(),
-                                          translationY.getAsDouble() * swerveDrive.getMaximumChassisVelocity()),
-                        angularRotationX.getAsDouble() * swerveDrive.getMaximumChassisAngularVelocity(),
-                        true,
-                        false);
+      speedControl = speedController.getAsDouble()/2+.5;
+      swerveDrive.drive(new Translation2d(translationX.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl(),
+                                          translationY.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl()),
+        angularRotationX.getAsDouble() * swerveDrive.getMaximumChassisAngularVelocity(),
+        true,
+        false);
     });
   }
 
+  private double getSpeedControl() {
+      return speedControl;
+    }
+
   // this overload was added by michael diorio
-  public Command driveCommand(DoubleSupplier translationX, DoubleSupplier translationY, DoubleSupplier angularRotationX, BooleanSupplier isFieldOriented)
+  public Command driveCommand(DoubleSupplier translationX, DoubleSupplier translationY, DoubleSupplier angularRotationX, BooleanSupplier isFieldOriented,DoubleSupplier speedController)
   {
     return run(() -> {
+      speedControl = speedController.getAsDouble()/2+.6;
       // Make the robot move
-      swerveDrive.drive(new Translation2d(translationX.getAsDouble() * swerveDrive.getMaximumChassisVelocity(),
-                                          translationY.getAsDouble() * swerveDrive.getMaximumChassisVelocity()),
+      swerveDrive.drive(new Translation2d(translationX.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl(),
+                                          translationY.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl()),
                         angularRotationX.getAsDouble() * swerveDrive.getMaximumChassisAngularVelocity(),
                         isFieldOriented.getAsBoolean(),
                         false);
@@ -119,9 +127,9 @@ public class SwerveSubsystem extends SubsystemBase{
           // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also optionally outputs individual module feedforwards
           new PPHolonomicDriveController(
               // PPHolonomicController is the built in path following controller for holonomic drive trains
-              new PIDConstants(5.0, 0.0, 0.0),
+              new PIDConstants(1.0, 0.0, 0.0),
               // Translation PID constants
-              new PIDConstants(5.0, 0.0, 0.0)
+              new PIDConstants(1.0, 0.0, 0.0)
               // Rotation PID constants
           ),
           config,
