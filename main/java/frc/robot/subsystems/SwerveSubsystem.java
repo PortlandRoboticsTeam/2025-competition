@@ -23,6 +23,7 @@ import frc.robot.RobotContainer;
 import swervelib.parser.SwerveParser;
 import swervelib.telemetry.SwerveDriveTelemetry;
 import swervelib.SwerveDrive;
+import swervelib.imu.SwerveIMU;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -57,7 +58,7 @@ public class SwerveSubsystem extends SubsystemBase{
   {
     return run(() -> {
       // Make the robot move
-      speedControl = speedController.getAsDouble()/2+.5;
+      speedControl = speedController.getAsDouble()*2+.6;
       swerveDrive.drive(new Translation2d(translationX.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl(),
                                           translationY.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl()),
         angularRotationX.getAsDouble() * swerveDrive.getMaximumChassisAngularVelocity(),
@@ -74,7 +75,7 @@ public class SwerveSubsystem extends SubsystemBase{
   public Command driveCommand(DoubleSupplier translationX, DoubleSupplier translationY, DoubleSupplier angularRotationX, BooleanSupplier isFieldOriented,DoubleSupplier speedController)
   {
     return run(() -> {
-      speedControl = speedController.getAsDouble()/2+.6;
+      speedControl = speedController.getAsDouble()/2+.8;
       // Make the robot move
       swerveDrive.drive(new Translation2d(translationX.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl(),
                                           translationY.getAsDouble() * swerveDrive.getMaximumChassisVelocity()*getSpeedControl()),
@@ -115,8 +116,8 @@ public class SwerveSubsystem extends SubsystemBase{
             if (enableFeedforward)
             {
               swerveDrive.drive(
-                  speedsRobotRelative,
-                  swerveDrive.kinematics.toSwerveModuleStates(speedsRobotRelative),
+                  speedsRobotRelative,// #TODO What the refrigerator is going on?!?!
+                  swerveDrive.kinematics.toSwerveModuleStates(new ChassisSpeeds(speedsRobotRelative.vxMetersPerSecond, speedsRobotRelative.vyMetersPerSecond, -speedsRobotRelative.omegaRadiansPerSecond)),
                   moduleFeedForwards.linearForces()
                                );
             } else
@@ -247,21 +248,48 @@ public class SwerveSubsystem extends SubsystemBase{
                                      );
   }
 
-public void updateOdometry() {
-    swerveDrive.updateOdometry();
-}
-public SwerveDrive getDriveTrain(){
-  return swerveDrive;
-}
-public Command vishionDrive(){
-  return run(() -> {
-    // Make the robot move
-    SmartDashboard.putNumber("visOut", limelight.getx());
-    swerveDrive.drive(new Translation2d(limelight.getx()+RobotContainer.getController().getRawAxis(1),
-                                        -limelight.gety()-RobotContainer.getController().getRawAxis(0)),
-                      0,
-                      false,
-                      false);
-  });
-}
+  public void updateOdometry() {
+      swerveDrive.updateOdometry();
+  }
+  public SwerveDrive getDriveTrain(){
+    return swerveDrive;
+  }
+  public Command vishionDriveR(){
+    return run(() -> {
+      // Make the robot move
+      //SmartDashboard.putNumber("visOut", limelight.getx());
+      swerveDrive.drive(new Translation2d(limelight.getx()-RobotContainer.getController().getRawAxis(1),
+                                          limelight.gety()-RobotContainer.getController().getRawAxis(0)),
+                                          MathUtil.applyDeadband(RobotContainer.getController().getRawAxis(2), Constants.DEADBAND),//limelight.getAngle(),
+                        false,
+                        false);
+    });
+  }
+  public Command vishionDriveL(){
+    return run(() -> {
+      // Make the robot move
+      //SmartDashboard.putNumber("visOut", limelight.getx());
+      swerveDrive.drive(new Translation2d(-limelight.getyL()-RobotContainer.getController().getRawAxis(1),
+      limelight.getxL()-RobotContainer.getController().getRawAxis(0)
+      ),MathUtil.applyDeadband(RobotContainer.getController().getRawAxis(2), Constants.DEADBAND),
+                                          
+                        false,
+                        false);
+    });
+
+  }
+  public Command vishionDrivePickup(){
+    return run(() -> {
+      // Make the robot move
+      //SmartDashboard.putNumber("visOut", limelight.getx());
+      swerveDrive.drive(new Translation2d(-limelight.getPickupx()-RobotContainer.getController().getRawAxis(1),
+                                          limelight.getPickupy()-RobotContainer.getController().getRawAxis(0)),
+                                          MathUtil.applyDeadband(RobotContainer.getController().getRawAxis(2), Constants.DEADBAND),//limelight.getAngle(),
+                        false,
+                        false);
+    });
+  }
+  public SwerveIMU getGyro() {
+    return swerveDrive.getGyro();
+  }
 }

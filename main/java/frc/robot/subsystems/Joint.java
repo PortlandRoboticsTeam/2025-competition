@@ -1,7 +1,5 @@
 package frc.robot.subsystems;
 
-import java.util.function.BooleanSupplier;
-
 // Import necessary libraries for hardware control and PID management
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -155,6 +153,9 @@ public class Joint extends SubsystemBase {
     }
     public void initialize(){
         setSetpoint(getAngleDegrees());
+    }
+    public Motor getMotor(){
+        return motor;
     }
 
 }

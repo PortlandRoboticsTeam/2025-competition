@@ -1,16 +1,19 @@
-package frc.robot.commands;
+package frc.robot.commands; //Defines the package for this command class
 
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.Encoder;
 import frc.robot.subsystems.Joint;
 
 public class JointToPosition extends Command{
+    //refrences to the joint & encoder subsystem
     Joint m_joint;
     Encoder encoder;
 
+
+    //Constructor that accepts the join to be controlled
     public JointToPosition(Joint joint) {
-    m_joint = joint;
-    encoder = joint.getEncoder();
+    m_joint = joint; //get the specific joint 
+    encoder = joint.getEncoder(); //get the encoder from the specified joint
 
     // Use addRequirements() here to declare subsystem dependencies.
     addRequirements(m_joint);

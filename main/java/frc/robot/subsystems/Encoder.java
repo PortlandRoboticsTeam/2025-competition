@@ -43,7 +43,7 @@ public class Encoder {
     }
     public void setOffsetTo(double newOffset){
         setOffset(0);
-        setOffset(getValue());
+        setOffset(getValue()-newOffset);
     }
     public boolean isConnected(){
         switch (type) {
